@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * ProcessEight
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this module to newer
+ * versions in the future. If you wish to customize this module for your
+ * needs please contact ProcessEight for more information.
+ *
+ * @package     ProcessEight\CatalogImagesResizeSync
+ * @copyright   Copyright (c) 2018 ProcessEight
+ * @author      ProcessEight
+ *
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!--Preferences -->
+    <preference for="ProcessEight\CatalogImagesResizeSync\Api\TimerInterface"
+                type="ProcessEight\CatalogImagesResizeSync\Model\Timer" />
+
+    <!--Console commands -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="imagesResizeCommand" xsi:type="object">ProcessEight\CatalogImagesResizeSync\Console\Command\ImagesResizeCommand</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="ProcessEight\CatalogImagesResizeSync\Console\Command\ImagesResizeCommand">
+        <arguments>
+            <argument name="productRepository" xsi:type="object">Magento\Catalog\Api\ProductRepositoryInterface\Proxy</argument>
+        </arguments>
+    </type>
+
+</config>
