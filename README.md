@@ -31,3 +31,13 @@ The app then queues images and processes them asyncly, passing the results back 
 * [x] Decide on which operations (e.g. Resize) should be handled by the app
 * [x] Create the base module
 * [ ] Create the adapter
+
+## Experiment Two: Bulk Database CRUD Operations
+
+### Description
+
+Proof-of-concept implementation of communicating with a MySQL database asyncly to perform regular CRUD operations.
+
+### Architecture
+
+* [ ] Decide on which CRUD operation to asyncize first
