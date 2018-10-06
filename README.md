@@ -44,3 +44,4 @@ If using https://github.com/friends-of-reactphp/mysql is too complicated, then c
 
 * [ ] Research how to use https://github.com/friends-of-reactphp/mysql
 * [ ] Decide on which CRUD operation to asyncize first
+    * [ ] Load all products from database (i.e. SELECT)

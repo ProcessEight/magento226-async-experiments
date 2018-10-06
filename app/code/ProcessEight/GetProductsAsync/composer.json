@@ -1,0 +1,24 @@
+{
+    "name": "processeight/module-getproductsasync",
+    "description": "Proof-of-concept implementation of communicating with a MySQL database asyncly to perform regular CRUD operations.",
+    "type": "magento2-module",
+    "license": [
+        "proprietary"
+    ],
+    "authors":[
+        {
+            "name":"Process Eight",
+            "email":"processeight@github.com"
+        }
+    ],
+    "require": {
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "ProcessEight\\GetProductsAsync\\": ""
+        }
+    }
+}
