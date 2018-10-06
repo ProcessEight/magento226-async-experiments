@@ -16,68 +16,40 @@
 
 namespace ProcessEight\CatalogImagesResizeAsync\Console\Command;
 
-use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Model\Product\Image\CacheFactory;
-use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
-use Magento\Catalog\Model\ResourceModel\Product\Image as ProductImage;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\ObjectManager;
-use Magento\Framework\App\State;
 use Magento\Catalog\Helper\Image as ImageHelper;
 use Magento\Framework\Console\Cli;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Magento\Framework\View\ConfigInterface as ViewConfig;
-use Magento\Theme\Model\ResourceModel\Theme\Collection as ThemeCollection;
 use Magento\Catalog\Model\Product\Image;
-use Magento\Catalog\Model\Product\ImageFactory as ProductImageFactory;
 
 class BatchImagesResizeCommand extends Command
 {
+    /**
+     * Name of this command
+     */
     const NAME = 'processeight:catalog:image:resize:batch';
 
     /**
-     * @var State
+     * @var \Magento\Framework\App\State
      */
-    protected $appState;
+    private $appState;
 
     /**
-     * @deprecated
-     * @var CollectionFactory
-     */
-    protected $productCollectionFactory;
-
-    /**
-     * @deprecated
-     * @var ProductRepositoryInterface
-     */
-    protected $productRepository;
-
-    /**
-     * @deprecated
-     * @var CacheFactory
-     */
-    protected $imageCacheFactory;
-
-    /**
-     * @var ProductImage
-     */
-    private $productImage;
-
-    /**
-     * @var ViewConfig
+     * @var \Magento\Framework\View\ConfigInterface
      */
     private $viewConfig;
 
     /**
-     * @var ThemeCollection
+     * @var \Magento\Theme\Model\ResourceModel\Theme\Collection
      */
     private $themeCollection;
 
     /**
-     * @var ProductImageFactory
+     * @var \Magento\Catalog\Model\Product\ImageFactory
      */
     private $productImageFactory;
 
@@ -85,6 +57,7 @@ class BatchImagesResizeCommand extends Command
      * @var \ProcessEight\CatalogImagesResizeAsync\Api\TimerInterface
      */
     private $timer;
+
     /**
      * @var \Magento\Framework\Serialize\Serializer\Json
      */
@@ -93,38 +66,28 @@ class BatchImagesResizeCommand extends Command
     /**
      * @param \ProcessEight\CatalogImagesResizeAsync\Api\TimerInterface $timer
      * @param \Magento\Framework\Serialize\Serializer\Json              $jsonSerializer
-     * @param State                                                     $appState
-     * @param CollectionFactory                                         $productCollectionFactory
-     * @param ProductRepositoryInterface                                $productRepository
-     * @param CacheFactory                                              $imageCacheFactory
-     * @param ProductImage                                              $productImage
-     * @param ViewConfig                                                $viewConfig
-     * @param ThemeCollection                                           $themeCollection
-     * @param ProductImageFactory                                       $productImageFactory
+     * @param \Magento\Framework\App\State                              $appState
+     * @param \Magento\Framework\View\ConfigInterface                   $viewConfig
+     * @param \Magento\Theme\Model\ResourceModel\Theme\Collection       $themeCollection
+     * @param \Magento\Catalog\Model\Product\ImageFactory               $productImageFactory
      */
     public function __construct(
         \ProcessEight\CatalogImagesResizeAsync\Api\TimerInterface $timer,
         \Magento\Framework\Serialize\Serializer\Json $jsonSerializer,
-        State $appState,
-        CollectionFactory $productCollectionFactory,
-        ProductRepositoryInterface $productRepository,
-        CacheFactory $imageCacheFactory,
-        ProductImage $productImage = null,
-        ViewConfig $viewConfig = null,
-        ThemeCollection $themeCollection = null,
-        ProductImageFactory $productImageFactory = null
+        \Magento\Framework\App\State $appState,
+        \Magento\Framework\View\ConfigInterface $viewConfig = null,
+        \Magento\Theme\Model\ResourceModel\Theme\Collection $themeCollection = null,
+        \Magento\Catalog\Model\Product\ImageFactory $productImageFactory = null
     ) {
-        $this->timer                    = $timer;
-        $this->jsonSerializer           = $jsonSerializer;
-        $this->appState                 = $appState;
-        $this->productCollectionFactory = $productCollectionFactory;
-        $this->productRepository        = $productRepository;
-        $this->imageCacheFactory        = $imageCacheFactory;
-        $this->productImage             = $productImage ?: ObjectManager::getInstance()->get(ProductImage::class);
-        $this->viewConfig               = $viewConfig ?: ObjectManager::getInstance()->get(ViewConfig::class);
-        $this->themeCollection          = $themeCollection ?: ObjectManager::getInstance()->get(ThemeCollection::class);
-        $this->productImageFactory      = $productImageFactory
-            ?: ObjectManager::getInstance()->get(ProductImageFactory::class);
+        $this->timer               = $timer;
+        $this->jsonSerializer      = $jsonSerializer;
+        $this->appState            = $appState;
+        $this->viewConfig          = $viewConfig
+            ?: ObjectManager::getInstance()->get(\Magento\Framework\View\ConfigInterface::class);
+        $this->themeCollection     = $themeCollection
+            ?: ObjectManager::getInstance()->get(\Magento\Theme\Model\ResourceModel\Theme\Collection::class);
+        $this->productImageFactory = $productImageFactory
+            ?: ObjectManager::getInstance()->get(\Magento\Catalog\Model\Product\ImageFactory::class);
         parent::__construct();
     }
 
@@ -158,8 +121,8 @@ class BatchImagesResizeCommand extends Command
             $productImages = $this->jsonSerializer->unserialize(
                 $input->getArgument('product-images')
             );
-            $themes     = $this->themeCollection->loadRegisteredThemes();
-            $viewImages = $this->getViewImages($themes->getItems());
+            $themes        = $this->themeCollection->loadRegisteredThemes();
+            $viewImages    = $this->getViewImages($themes->getItems());
 
             foreach ($productImages as $image) {
                 $originalImageName = $image['filepath'];
@@ -174,7 +137,7 @@ class BatchImagesResizeCommand extends Command
             }
         } catch (\Exception $e) {
             $messages[] = "<error>{$e->getMessage()}</error>";
-            $status = Cli::RETURN_FAILURE;
+            $status     = Cli::RETURN_FAILURE;
         }
 
         $messages[] = "<info>{$processed} images re-sized successfully.</info>";
