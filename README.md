@@ -38,4 +38,9 @@ Proof-of-concept implementation of communicating with a MySQL database asyncly t
 
 ### Architecture
 
+Keep the async solution as simple as possible.
+
+If using https://github.com/friends-of-reactphp/mysql is too complicated, then consider an approach similar to that taken in _Experiment One_.
+
+* [ ] Research how to use https://github.com/friends-of-reactphp/mysql
 * [ ] Decide on which CRUD operation to asyncize first
