@@ -4,16 +4,16 @@
 
 ### Description
 
-Intended as a drop-in replacement for core Magento 2 image processing
+Intended as a drop-in replacement for core Magento 2 image processing.
 
 ### Architecture
 
 #### Phase 1:
 
-Get count of product images
-Chunk according to number of threads
-Feed each chunk into new sync command
-Create new sync command
+* [x] Get count of product images
+* [x] Chunk according to number of threads
+* [x] Feed each chunk into new sync command
+* [x] Create new sync command
 
 #### Phase 2:
 
@@ -25,9 +25,7 @@ The app then queues images and processes them asyncly, passing the results back 
 
 * [x] Research how Magento processes images
 * [x] Decide on the best point to intercept the images
-    * [ ] Rewrite the `catalog:images:resize` command to be async
-        * [ ] Use https://github.com/clue/reactphp-block to create the event loop
-        * [ ] Use https://github.com/reactphp/filesystem to interact (load, save) with the filesystem
+    * [x] Rewrite the `catalog:images:resize` command to be async
 * [x] Decide on which operations (e.g. Resize) should be handled by the app
+    * [x] Rather than target individual operations, split the workload of the command into smaller batches and process those batches asyncly
 * [x] Create the base module
-* [ ] Create the adapter
