@@ -8,7 +8,7 @@
  * versions in the future. If you wish to customize this module for your
  * needs please contact ProcessEight for more information.
  *
- * @package     ProcessEight\GetProductsSync
+ * @package     ProcessEight\GetProductsAsync
  * @copyright   Copyright (c) 2018 ProcessEight
  * @author      ProcessEight
  *

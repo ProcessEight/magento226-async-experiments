@@ -27,16 +27,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetProductsSyncCommand extends Command
 {
     /**
-     * The default number of products to load
-     */
-    const PAGE_SIZE = 10;
-
-    /**
-     * Name of the argument which defines how many products to load
-     */
-    const NUMBER_OF_PRODUCTS_TO_LOAD = 'number-of-products';
-
-    /**
      * @var \ProcessEight\GetProductsSync\Api\TimerInterface
      */
     private $timer;
@@ -84,13 +74,7 @@ class GetProductsSyncCommand extends Command
     protected function configure()
     {
         $this->setName("processeight:get-products:sync");
-        $this->setDescription("Load product data syncly");
-        $this->addArgument(
-            self::NUMBER_OF_PRODUCTS_TO_LOAD,
-            InputArgument::OPTIONAL,
-            'Number of products to load',
-            self::PAGE_SIZE
-        );
+        $this->setDescription("Load all product data syncly");
         parent::configure();
     }
 
@@ -112,13 +96,10 @@ class GetProductsSyncCommand extends Command
 
         $productRepo = $this->productRepository->getList(
             $this->searchCriteria
-//                ->setPageSize((int)$input->getArgument(self::NUMBER_OF_PRODUCTS_TO_LOAD))
-//                ->setCurrentPage(0)
         );
-        $products    = $productRepo->getItems();
 
         // Make sure we trigger any 'on load' logic
-        foreach ($products as $key => $product) {
+        foreach ($productRepo->getItems() as $key => $product) {
             $output->writeln($key);
             $output->writeln(var_export($product->getData(), true));
         }
