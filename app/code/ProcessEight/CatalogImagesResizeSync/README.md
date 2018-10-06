@@ -22,7 +22,7 @@ Starting timer...
 $this->timer->startTimer();
 
 // Do something
-$this->startProcesses($customerIds, $numberOfThreads);
+$this->startProcesses($customerIds, $numberOfChildProcesses);
 
 $this->timer->stopTimer();
 

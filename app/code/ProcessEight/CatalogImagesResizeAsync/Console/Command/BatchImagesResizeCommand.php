@@ -152,35 +152,36 @@ class BatchImagesResizeCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->appState->setAreaCode(Area::AREA_GLOBAL);
+        $status = Cli::RETURN_SUCCESS;
 
         try {
             $productImages = $this->jsonSerializer->unserialize(
                 $input->getArgument('product-images')
             );
-
             $themes     = $this->themeCollection->loadRegisteredThemes();
             $viewImages = $this->getViewImages($themes->getItems());
 
             foreach ($productImages as $image) {
                 $originalImageName = $image['filepath'];
 
+                $processed = 0;
                 foreach ($viewImages as $viewImage) {
                     $image = $this->makeImage($originalImageName, $viewImage);
                     $image->resize();
                     $image->saveFile();
+                    $processed++;
                 }
             }
         } catch (\Exception $e) {
-            $output->writeln("<error>{$e->getMessage()}</error>");
-
-            // we must have an exit code higher than zero to indicate something was wrong
-            return Cli::RETURN_FAILURE;
+            $messages[] = "<error>{$e->getMessage()}</error>";
+            $status = Cli::RETURN_FAILURE;
         }
 
-//        $output->write("\n");
-//        $output->writeln("<info>Product images resized successfully.</info>");
+        $messages[] = "<info>{$processed} images re-sized successfully.</info>";
 
-        return 0;
+        $output->writeln(implode(PHP_EOL, $messages));
+
+        return $status;
     }
 
     /**

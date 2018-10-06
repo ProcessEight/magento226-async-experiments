@@ -16,9 +16,6 @@
 
 namespace ProcessEight\CatalogImagesResizeAsync\Console\Command;
 
-use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Model\Product\Image\CacheFactory;
-use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use Magento\Catalog\Model\ResourceModel\Product\Image as ProductImage;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\ObjectManager;
@@ -29,56 +26,23 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Magento\Framework\View\ConfigInterface as ViewConfig;
-use Magento\Theme\Model\ResourceModel\Theme\Collection as ThemeCollection;
-use Magento\Catalog\Model\Product\ImageFactory as ProductImageFactory;
 
 class AsyncImagesResizeCommand extends Command
 {
-    const ARGUMENT_NUMBER_OF_THREADS = 'threads';
+    /**
+     * Name of the argument which defines the number of child processes to spawn
+     */
+    const NUMBER_OF_CHILD_PROCESSES = 'processes';
 
     /**
      * @var State
      */
-    protected $appState;
-
-    /**
-     * @deprecated
-     * @var CollectionFactory
-     */
-    protected $productCollectionFactory;
-
-    /**
-     * @deprecated
-     * @var ProductRepositoryInterface
-     */
-    protected $productRepository;
-
-    /**
-     * @deprecated
-     * @var CacheFactory
-     */
-    protected $imageCacheFactory;
+    private $appState;
 
     /**
      * @var ProductImage
      */
     private $productImage;
-
-    /**
-     * @var ViewConfig
-     */
-    private $viewConfig;
-
-    /**
-     * @var ThemeCollection
-     */
-    private $themeCollection;
-
-    /**
-     * @var ProductImageFactory
-     */
-    private $productImageFactory;
 
     /**
      * @var \ProcessEight\CatalogImagesResizeSync\Api\TimerInterface
@@ -106,13 +70,7 @@ class AsyncImagesResizeCommand extends Command
      * @param \React\EventLoop\Factory                                                     $loopFactory
      * @param \Magento\Framework\Serialize\Serializer\Json                                 $jsonSerializer
      * @param State                                                                        $appState
-     * @param CollectionFactory                                                            $productCollectionFactory
-     * @param ProductRepositoryInterface                                                   $productRepository
-     * @param CacheFactory                                                                 $imageCacheFactory
      * @param ProductImage                                                                 $productImage
-     * @param ViewConfig                                                                   $viewConfig
-     * @param ThemeCollection                                                              $themeCollection
-     * @param ProductImageFactory                                                          $productImageFactory
      */
     public function __construct(
         \ProcessEight\CatalogImagesResizeAsync\Api\TimerInterface $timer,
@@ -120,28 +78,15 @@ class AsyncImagesResizeCommand extends Command
         \React\EventLoop\Factory $loopFactory,
         \Magento\Framework\Serialize\Serializer\Json $jsonSerializer,
         State $appState,
-        CollectionFactory $productCollectionFactory,
-        ProductRepositoryInterface $productRepository,
-        CacheFactory $imageCacheFactory,
-        ProductImage $productImage = null,
-        ViewConfig $viewConfig = null,
-        ThemeCollection $themeCollection = null,
-        ProductImageFactory $productImageFactory = null
+        ProductImage $productImage = null
     ) {
-        $this->timer                    = $timer;
-        $this->processFactory           = $processFactory;
-        $this->loop                     = $loopFactory::create();
-        $this->appState                 = $appState;
-        $this->productCollectionFactory = $productCollectionFactory;
-        $this->productRepository        = $productRepository;
-        $this->imageCacheFactory        = $imageCacheFactory;
-        $this->productImage             = $productImage ?: ObjectManager::getInstance()->get(ProductImage::class);
-        $this->viewConfig               = $viewConfig ?: ObjectManager::getInstance()->get(ViewConfig::class);
-        $this->themeCollection          = $themeCollection ?: ObjectManager::getInstance()->get(ThemeCollection::class);
-        $this->productImageFactory      = $productImageFactory
-            ?: ObjectManager::getInstance()->get(ProductImageFactory::class);
-        parent::__construct();
+        $this->timer          = $timer;
+        $this->processFactory = $processFactory;
+        $this->loop           = $loopFactory::create();
         $this->jsonSerializer = $jsonSerializer;
+        $this->appState       = $appState;
+        $this->productImage   = $productImage ?: ObjectManager::getInstance()->get(ProductImage::class);
+        parent::__construct();
     }
 
     /**
@@ -152,9 +97,9 @@ class AsyncImagesResizeCommand extends Command
         $this->setName('processeight:catalog:images:resize:async')
              ->setDescription('Creates resized product images asyncly')
              ->addArgument(
-                 self::ARGUMENT_NUMBER_OF_THREADS,
+                 self::NUMBER_OF_CHILD_PROCESSES,
                  InputArgument::OPTIONAL,
-                 'Number of threads for running the command',
+                 'Number of child processes to spawn',
                  3
              )
         ;
@@ -172,15 +117,18 @@ class AsyncImagesResizeCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $output->writeln("<info>Starting timer...</info>");
+        $output->writeln("<info>Using {$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES)} child processes</info>");
         $this->timer->startTimer();
 
         $this->appState->setAreaCode(Area::AREA_GLOBAL);
 
         try {
-            $numberOfThreads = (int)$input->getArgument(self::ARGUMENT_NUMBER_OF_THREADS);
-            $count           = $this->productImage->getCountAllProductImages();
+            $numberOfChildProcesses = (int)$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES);
+            $count                  = $this->productImage->getCountAllProductImages();
             if (!$count) {
                 $output->writeln("<info>No product images to resize</info>");
+                $this->timer->stopTimer();
+                $output->writeln("<info>Command took {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
 
                 return Cli::RETURN_SUCCESS;
             }
@@ -189,66 +137,45 @@ class AsyncImagesResizeCommand extends Command
             foreach ($productImages as $productImage) {
                 $images[] = $productImage;
             }
-            $this->startProcesses($images ?? [], $numberOfThreads);
 
-            // Figure this out later
-//            $progress = new ProgressBar($output, $count);
-//            $progress->setFormat(
-//                "%current%/%max% [%bar%] %percent:3s%% %elapsed% %memory:6s% \t| <info>%message%</info>"
-//            );
+            $this->processImagesUsingEventLoop($images ?? [], $numberOfChildProcesses);
 
-//            if ($output->getVerbosity() !== OutputInterface::VERBOSITY_NORMAL) {
-//                $progress->setOverwrite(false);
-//            }
-
-//            foreach ($productImages as $image) {
-//                $originalImageName = $image['filepath'];
-//
-//                foreach ($viewImages as $viewImage) {
-//                    $image = $this->makeImage($originalImageName, $viewImage);
-//                    $image->resize();
-//                    $image->saveFile();
-//                }
-//                $progress->setMessage($originalImageName);
-//                $progress->advance();
-//            }
         } catch (\Exception $e) {
             $output->writeln("<error>{$e->getMessage()}</error>");
 
-            // we must have an exit code higher than zero to indicate something was wrong
             return Cli::RETURN_FAILURE;
         }
 
         $this->timer->stopTimer();
         $output->write("\n");
-        $output->writeln("<info>{$count} product images resized successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>{$count} product images re-sized successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
 
         return 0;
     }
 
     /**
      * @param int[] $productImages
-     * @param int   $numberOfThreads
+     * @param int   $numberOfChildProcesses
      */
-    protected function startProcesses(array $productImages, int $numberOfThreads) : void
+    private function processImagesUsingEventLoop(array $productImages, int $numberOfChildProcesses) : void
     {
-        $numberOfChunks     = $this->calculateNumberOfChunksForThreads($productImages, $numberOfThreads);
+        $numberOfChunks     = $this->calculateNumberOfChunksForChildProcesses($productImages, $numberOfChildProcesses);
         $productImageChunks = array_chunk($productImages, $numberOfChunks);
         foreach ($productImageChunks as $chunk) {
-            $this->createProcessDefinition($this->getFullCommand($chunk));
+            $this->createChildProcess($this->getChildProcessCommand($chunk));
         }
         $this->loop->run();
     }
 
     /**
      * @param int[] $productImages
-     * @param int   $numberOfThreads
+     * @param int   $numberOfChildProcesses
      *
      * @return int
      */
-    protected function calculateNumberOfChunksForThreads(array $productImages, int $numberOfThreads) : int
+    private function calculateNumberOfChunksForChildProcesses(array $productImages, int $numberOfChildProcesses) : int
     {
-        $numberOfChunks = (int)(count($productImages) / $numberOfThreads);
+        $numberOfChunks = (int)(count($productImages) / $numberOfChildProcesses);
 
         return $numberOfChunks > 0 ? $numberOfChunks : 1;
     }
@@ -256,7 +183,7 @@ class AsyncImagesResizeCommand extends Command
     /**
      * @param string $command
      */
-    protected function createProcessDefinition(string $command) : void
+    private function createChildProcess(string $command) : void
     {
         $reactProcess = $this->processFactory->create($command);
         $reactProcess->start($this->loop);
@@ -271,7 +198,7 @@ class AsyncImagesResizeCommand extends Command
      *
      * @return string
      */
-    protected function getFullCommand(array $productImages) : string
+    private function getChildProcessCommand(array $productImages) : string
     {
         return PHP_BINARY
                . sprintf(
