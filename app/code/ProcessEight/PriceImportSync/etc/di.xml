@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * ProcessEight
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this module to newer
+ * versions in the future. If you wish to customize this module for your
+ * needs please contact ProcessEight for more information.
+ *
+ * @package     ProcessEight\PriceImportSync
+ * @copyright   Copyright (c) 2018 ProcessEight
+ * @author      ProcessEight
+ *
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!-- Preferences -->
+    <preference for="ProcessEight\PriceImportSync\Api\TimerInterface"
+                type="ProcessEight\PriceImportSync\Model\Timer" />
+
+    <!-- Console commands -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="priceImportCommand"
+                      xsi:type="object">ProcessEight\PriceImportSync\Console\Command\PriceImportCommand</item>
+            </argument>
+        </arguments>
+    </type>
+
+</config>
