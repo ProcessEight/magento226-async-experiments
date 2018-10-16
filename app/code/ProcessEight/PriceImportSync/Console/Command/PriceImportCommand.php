@@ -70,7 +70,7 @@ class PriceImportCommand extends Command
     protected function configure()
     {
         $this->setName('processeight:catalog:prices:import:sync')
-             ->setDescription('Imports product prices')
+             ->setDescription('Imports product prices syncly')
         ;
     }
 
