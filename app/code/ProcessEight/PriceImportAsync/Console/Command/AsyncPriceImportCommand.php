@@ -114,12 +114,16 @@ class AsyncPriceImportCommand extends Command
         try {
             $numberOfChildProcesses = (int)$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES);
 
-            if (($handle = fopen('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Console/Command/prices.csv',
+            if (($asyncPricesCsvHandle = fopen('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Console/Command/async-prices.csv',
                     "r")) !== false) {
-                while (($price = fgetcsv($handle)) !== false) {
+                while (($price = fgetcsv($asyncPricesCsvHandle)) !== false) {
                     $basePrices[] = $price;
                 }
             }
+            fclose($asyncPricesCsvHandle);
+
+            // Unset header row of CSV
+            unset($basePrices[0]);
 
             $this->processBasePricesUsingEventLoop($basePrices ?? [], $numberOfChildProcesses);
 

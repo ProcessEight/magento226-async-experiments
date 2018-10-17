@@ -122,8 +122,8 @@ class BatchPriceImportCommand extends Command
                 /** @var \Magento\Catalog\Api\Data\BasePriceInterface $basePrice */
                 $basePrice = $this->basePriceFactory->create();
                 $basePrice->setSku($price[0]);
-                $basePrice->setPrice($price[3]);
-                $basePrice->setStoreId($price[2]);
+                $basePrice->setStoreId($price[1]);
+                $basePrice->setPrice($price[2]);
                 $basePrices[] = $basePrice;
 
                 $processed++;
