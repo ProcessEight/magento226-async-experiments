@@ -9,6 +9,7 @@ Command which imports catalog product base prices in an asynchronous fashion
 Updating 2048 products from the sample data with new base prices:
 
 ```bash
+# Base prices only
 $ mr2 processeight:catalog:prices:import:async 3
 Starting timer...
 Using 3 child processes
@@ -53,22 +54,37 @@ Using 12 child processes
 
 Stopped timer.
 All product prices imported successfully in 1.0194411277771 seconds.
+
+# Base prices and Cost prices
+$ mr2 processeight:catalog:prices:import:async 
+Starting timer...
+Using 3 child processes
+682 prices imported successfully.
+682 prices imported successfully.
+682 prices imported successfully.
+
+Stopped timer.
+All product prices imported successfully in 0.51760196685791 seconds.
 ```
 
 ## Timer
 
-Using the timer:
+Inject the `TimerInterface` using DI. Then:
 
 ```php
 <?php
 
-// Inject timer using DI
+// Start the timer
 $this->timer->startTimer();
 
 // Do something
-$this->startProcesses($customerIds, $numberOfCildProcesses);
+$customerIds = [12345, 12346, 12347];
+$numberOfChildProcesses = 3;
+$this->startProcesses($customerIds, $numberOfChildProcesses);
 
+// Stop the timer
 $this->timer->stopTimer();
 
+// Get the elapsed time
 $output->writeln("<info>Process finished after {$this->timer->getExecutionTimeInSeconds()} seconds</info>");
 ```

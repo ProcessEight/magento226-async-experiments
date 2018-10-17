@@ -114,18 +114,9 @@ class AsyncPriceImportCommand extends Command
         try {
             $numberOfChildProcesses = (int)$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES);
 
-            if (($asyncPricesCsvHandle = fopen('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Console/Command/async-prices.csv',
-                    "r")) !== false) {
-                while (($price = fgetcsv($asyncPricesCsvHandle)) !== false) {
-                    $basePrices[] = $price;
-                }
-            }
-            fclose($asyncPricesCsvHandle);
+            $allPrices = array_map('str_getcsv', file('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Console/Command/async-prices.csv'));
 
-            // Unset header row of CSV
-            unset($basePrices[0]);
-
-            $this->processBasePricesUsingEventLoop($basePrices ?? [], $numberOfChildProcesses);
+            $this->processBasePricesUsingEventLoop($allPrices ?? [], $numberOfChildProcesses);
 
         } catch (\Exception $e) {
             $output->writeln("<error>{$e->getMessage()}</error>");
@@ -187,18 +178,18 @@ class AsyncPriceImportCommand extends Command
     }
 
     /**
-     * @param int[] $productImages
+     * @param int[] $productPrices
      *
      * @return string
      */
-    private function getChildProcessCommand(array $productImages) : string
+    private function getChildProcessCommand(array $productPrices) : string
     {
         return PHP_BINARY
                . sprintf(
                    ' %s/bin/magento %s %s',
                    BP,
                    BatchPriceImportCommand::NAME,
-                   "'" . $this->jsonSerializer->serialize($productImages) . "'"
+                   "'" . $this->jsonSerializer->serialize($productPrices) . "'"
                );
     }
 }

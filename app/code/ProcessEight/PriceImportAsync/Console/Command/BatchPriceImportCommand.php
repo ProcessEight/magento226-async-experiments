@@ -61,24 +61,40 @@ class BatchPriceImportCommand extends Command
     private $basePriceStorageFactory;
 
     /**
+     * @var \Magento\Catalog\Api\Data\CostInterface
+     */
+    private $costPriceFactory;
+
+    /**
+     * @var \Magento\Catalog\Api\CostStorageInterfaceFactory
+     */
+    private $costPriceStorageFactory;
+
+    /**
      * @param \Magento\Framework\App\State                          $appState
      * @param \ProcessEight\PriceImportAsync\Api\TimerInterface     $timer
      * @param \Magento\Framework\Serialize\Serializer\Json          $jsonSerializer
      * @param \Magento\Catalog\Api\Data\BasePriceInterfaceFactory   $basePriceFactory
      * @param \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory
+     * @param \Magento\Catalog\Api\Data\CostInterfaceFactory        $costPriceFactory
+     * @param \Magento\Catalog\Api\CostStorageInterfaceFactory      $costPriceStorageFactory
      */
     public function __construct(
         \Magento\Framework\App\State $appState,
         \ProcessEight\PriceImportAsync\Api\TimerInterface $timer,
         \Magento\Framework\Serialize\Serializer\Json $jsonSerializer,
         \Magento\Catalog\Api\Data\BasePriceInterfaceFactory $basePriceFactory,
-        \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory
+        \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory,
+        \Magento\Catalog\Api\Data\CostInterfaceFactory $costPriceFactory,
+        \Magento\Catalog\Api\CostStorageInterfaceFactory $costPriceStorageFactory
     ) {
         $this->appState                = $appState;
         $this->timer                   = $timer;
         $this->jsonSerializer          = $jsonSerializer;
         $this->basePriceFactory        = $basePriceFactory;
         $this->basePriceStorageFactory = $basePriceStorageFactory;
+        $this->costPriceFactory        = $costPriceFactory;
+        $this->costPriceStorageFactory = $costPriceStorageFactory;
         parent::__construct();
     }
 
@@ -114,10 +130,16 @@ class BatchPriceImportCommand extends Command
                 $input->getArgument(self::ARGUMENT)
             );
 
+            $processed          = 0;
+            $basePriceProcessed = 0;
+            $costPriceProcessed = 0;
+
             /** @var \Magento\Catalog\Api\BasePriceStorageInterface $basePriceStorage */
             $basePriceStorage = $this->basePriceStorageFactory->create();
-            $processed        = 0;
             $basePrices       = [];
+            /** @var \Magento\Catalog\Api\CostStorageInterface $costPriceStorage */
+            $costPriceStorage = $this->costPriceStorageFactory->create();
+            $costPrices       = [];
             foreach ($productPrices as $price) {
                 /** @var \Magento\Catalog\Api\Data\BasePriceInterface $basePrice */
                 $basePrice = $this->basePriceFactory->create();
@@ -126,15 +148,25 @@ class BatchPriceImportCommand extends Command
                 $basePrice->setPrice($price[2]);
                 $basePrices[] = $basePrice;
 
+                /** @var \Magento\Catalog\Api\Data\CostInterface $costPrice */
+                $costPrice = $this->costPriceFactory->create();
+                $costPrice->setSku($price[0]);
+                $costPrice->setStoreId($price[1]);
+                $costPrice->setCost($price[4]);
+                $costPrices[] = $costPrice;
+
                 $processed++;
+                $basePriceProcessed++;
+                $costPriceProcessed++;
             }
             $basePriceStorage->update($basePrices);
+            $costPriceStorage->update($costPrices);
         } catch (\Exception $e) {
             $messages[] = "<error>{$e->getMessage()}</error>";
             $status     = Cli::RETURN_FAILURE;
         }
 
-        $messages[] = "<info>{$processed} prices imported successfully.</info>";
+        $messages[] = "<info>{$basePriceProcessed} base prices and {$costPriceProcessed} cost prices imported successfully.</info>";
 
         $output->writeln(implode(PHP_EOL, $messages));
 

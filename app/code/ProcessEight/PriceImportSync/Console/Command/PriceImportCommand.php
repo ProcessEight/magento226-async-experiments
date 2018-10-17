@@ -106,10 +106,10 @@ class PriceImportCommand extends Command
         $this->appState->setAreaCode(Area::AREA_GLOBAL);
 
         try {
-            $count          = 0;
-            $basePriceCount = 0;
-            $costPriceCount = 0;
-            $progress       = new ProgressBar($output, $count);
+            $processed          = 0;
+            $basePriceProcessed = 0;
+            $costPriceProcessed = 0;
+            $progress           = new ProgressBar($output, $processed);
             $progress->setFormat(
                 "%current%/%max% [%bar%] %percent:3s%% %elapsed% %memory:6s% \t| <info>%message%</info>"
             );
@@ -141,13 +141,13 @@ class PriceImportCommand extends Command
                     $costPrice->setCost($price[4]);
                     $costPrices[] = $costPrice;
 
-                    $count++;
-                    $basePriceCount++;
-                    $costPriceCount++;
+                    $processed++;
+                    $basePriceProcessed++;
+                    $costPriceProcessed++;
                     $progress->setMessage($price[0]);
                     $progress->advance();
 
-                    if ($count % 100 == 0) {
+                    if ($processed % 100 == 0) {
                         $basePriceStorage->update($basePrices);
                         $basePrices = [];
                         $costPriceStorage->update($costPrices);
@@ -173,7 +173,7 @@ class PriceImportCommand extends Command
         $this->timer->stopTimer();
         $output->writeln("");
         $output->writeln("<info>Stopped timer.</info>");
-        $output->writeln("<info>{$basePriceCount} base prices and {$costPriceCount} cost prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>{$basePriceProcessed} base prices and {$costPriceProcessed} cost prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
 
         return Cli::RETURN_SUCCESS;
     }
