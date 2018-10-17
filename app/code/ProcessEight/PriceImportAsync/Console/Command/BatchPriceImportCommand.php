@@ -41,11 +41,6 @@ class BatchPriceImportCommand extends Command
     private $appState;
 
     /**
-     * @var \ProcessEight\PriceImportAsync\Api\TimerInterface
-     */
-    private $timer;
-
-    /**
      * @var \Magento\Framework\Serialize\Serializer\Json
      */
     private $jsonSerializer;
@@ -72,7 +67,6 @@ class BatchPriceImportCommand extends Command
 
     /**
      * @param \Magento\Framework\App\State                          $appState
-     * @param \ProcessEight\PriceImportAsync\Api\TimerInterface     $timer
      * @param \Magento\Framework\Serialize\Serializer\Json          $jsonSerializer
      * @param \Magento\Catalog\Api\Data\BasePriceInterfaceFactory   $basePriceFactory
      * @param \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory
@@ -81,7 +75,6 @@ class BatchPriceImportCommand extends Command
      */
     public function __construct(
         \Magento\Framework\App\State $appState,
-        \ProcessEight\PriceImportAsync\Api\TimerInterface $timer,
         \Magento\Framework\Serialize\Serializer\Json $jsonSerializer,
         \Magento\Catalog\Api\Data\BasePriceInterfaceFactory $basePriceFactory,
         \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory,
@@ -89,7 +82,6 @@ class BatchPriceImportCommand extends Command
         \Magento\Catalog\Api\CostStorageInterfaceFactory $costPriceStorageFactory
     ) {
         $this->appState                = $appState;
-        $this->timer                   = $timer;
         $this->jsonSerializer          = $jsonSerializer;
         $this->basePriceFactory        = $basePriceFactory;
         $this->basePriceStorageFactory = $basePriceStorageFactory;
@@ -130,10 +122,6 @@ class BatchPriceImportCommand extends Command
                 $input->getArgument(self::ARGUMENT)
             );
 
-            $processed          = 0;
-            $basePriceProcessed = 0;
-            $costPriceProcessed = 0;
-
             /** @var \Magento\Catalog\Api\BasePriceStorageInterface $basePriceStorage */
             $basePriceStorage = $this->basePriceStorageFactory->create();
             $basePrices       = [];
@@ -154,21 +142,13 @@ class BatchPriceImportCommand extends Command
                 $costPrice->setStoreId($price[1]);
                 $costPrice->setCost($price[4]);
                 $costPrices[] = $costPrice;
-
-                $processed++;
-                $basePriceProcessed++;
-                $costPriceProcessed++;
             }
             $basePriceStorage->update($basePrices);
             $costPriceStorage->update($costPrices);
         } catch (\Exception $e) {
-            $messages[] = "<error>{$e->getMessage()}</error>";
+            $output->writeln("<error>{$e->getMessage()}</error>");
             $status     = Cli::RETURN_FAILURE;
         }
-
-        $messages[] = "<info>{$basePriceProcessed} base prices and {$costPriceProcessed} cost prices imported successfully.</info>";
-
-        $output->writeln(implode(PHP_EOL, $messages));
 
         return $status;
     }

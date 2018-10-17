@@ -95,7 +95,7 @@ class AsyncImagesResizeCommand extends Command
     protected function configure()
     {
         $this->setName('processeight:catalog:images:resize:async')
-             ->setDescription('Creates resized product images asyncly')
+             ->setDescription('Creates re-sized product images asyncly')
              ->addArgument(
                  self::NUMBER_OF_CHILD_PROCESSES,
                  InputArgument::OPTIONAL,
@@ -149,6 +149,7 @@ class AsyncImagesResizeCommand extends Command
         $this->timer->stopTimer();
         $output->write("\n");
         $output->writeln("<info>{$count} product images re-sized successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
 
         return 0;
     }

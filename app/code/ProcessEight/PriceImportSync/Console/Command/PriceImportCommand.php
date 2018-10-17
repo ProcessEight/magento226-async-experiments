@@ -71,8 +71,8 @@ class PriceImportCommand extends Command
         \Magento\Catalog\Api\Data\CostInterfaceFactory $costPriceFactory,
         \Magento\Catalog\Api\CostStorageInterfaceFactory $costPriceStorageFactory
     ) {
-        $this->timer                   = $timer;
         $this->appState                = $appState;
+        $this->timer                   = $timer;
         $this->basePriceFactory        = $basePriceFactory;
         $this->basePriceStorageFactory = $basePriceStorageFactory;
         $this->costPriceFactory        = $costPriceFactory;
@@ -106,10 +106,8 @@ class PriceImportCommand extends Command
         $this->appState->setAreaCode(Area::AREA_GLOBAL);
 
         try {
-            $processed          = 0;
-            $basePriceProcessed = 0;
-            $costPriceProcessed = 0;
-            $progress           = new ProgressBar($output, $processed);
+            $processed = 0;
+            $progress  = new ProgressBar($output, $processed);
             $progress->setFormat(
                 "%current%/%max% [%bar%] %percent:3s%% %elapsed% %memory:6s% \t| <info>%message%</info>"
             );
@@ -124,38 +122,35 @@ class PriceImportCommand extends Command
             /** @var \Magento\Catalog\Api\CostStorageInterface $costPriceStorage */
             $costPriceStorage = $this->costPriceStorageFactory->create();
             $costPrices       = [];
-            if (($syncPricesCsvHandle = fopen('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportSync/Console/Command/sync-prices.csv',
-                    "r")) !== false) {
-                while (($price = fgetcsv($syncPricesCsvHandle)) !== false) {
-                    /** @var \Magento\Catalog\Api\Data\BasePriceInterface $basePrice */
-                    $basePrice = $this->basePriceFactory->create();
-                    $basePrice->setSku($price[0]);
-                    $basePrice->setStoreId($price[1]);
-                    $basePrice->setPrice($price[2]);
-                    $basePrices[] = $basePrice;
+            $allPrices        = array_map('str_getcsv',
+                file('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportSync/Console/Command/sync-prices.csv'));
 
-                    /** @var \Magento\Catalog\Api\Data\CostInterface $costPrice */
-                    $costPrice = $this->costPriceFactory->create();
-                    $costPrice->setSku($price[0]);
-                    $costPrice->setStoreId($price[1]);
-                    $costPrice->setCost($price[4]);
-                    $costPrices[] = $costPrice;
+            foreach ($allPrices as $price) {
+                /** @var \Magento\Catalog\Api\Data\BasePriceInterface $basePrice */
+                $basePrice = $this->basePriceFactory->create();
+                $basePrice->setSku($price[0]);
+                $basePrice->setStoreId($price[1]);
+                $basePrice->setPrice($price[2]);
+                $basePrices[] = $basePrice;
 
-                    $processed++;
-                    $basePriceProcessed++;
-                    $costPriceProcessed++;
-                    $progress->setMessage($price[0]);
-                    $progress->advance();
+                /** @var \Magento\Catalog\Api\Data\CostInterface $costPrice */
+                $costPrice = $this->costPriceFactory->create();
+                $costPrice->setSku($price[0]);
+                $costPrice->setStoreId($price[1]);
+                $costPrice->setCost($price[4]);
+                $costPrices[] = $costPrice;
 
-                    if ($processed % 100 == 0) {
-                        $basePriceStorage->update($basePrices);
-                        $basePrices = [];
-                        $costPriceStorage->update($costPrices);
-                        $costPrices = [];
-                    }
+                $processed++;
+                $progress->setMessage($price[0]);
+                $progress->advance();
+
+                if ($processed % 100 == 0) {
+                    $basePriceStorage->update($basePrices);
+                    $basePrices = [];
+                    $costPriceStorage->update($costPrices);
+                    $costPrices = [];
                 }
             }
-            fclose($syncPricesCsvHandle);
             if (!empty($basePrices)) {
                 $basePriceStorage->update($basePrices);
                 $progress->advance();
@@ -173,7 +168,8 @@ class PriceImportCommand extends Command
         $this->timer->stopTimer();
         $output->writeln("");
         $output->writeln("<info>Stopped timer.</info>");
-        $output->writeln("<info>{$basePriceProcessed} base prices and {$costPriceProcessed} cost prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>{$processed} prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
 
         return Cli::RETURN_SUCCESS;
     }

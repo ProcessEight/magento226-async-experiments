@@ -128,6 +128,7 @@ class AsyncPriceImportCommand extends Command
         $output->writeln("");
         $output->writeln("Stopped timer.");
         $output->writeln("<info>All product prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
 
         return Cli::RETURN_SUCCESS;
     }

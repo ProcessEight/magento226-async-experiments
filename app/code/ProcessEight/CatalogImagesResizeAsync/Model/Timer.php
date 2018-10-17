@@ -74,4 +74,19 @@ class Timer implements TimerInterface
 
         return $executionTime;
     }
+
+    /**
+     * Convert byte count to float KB/MB format
+     *
+     * @return string
+     */
+    public function getMemoryPeakUsage()
+    {
+        $bytes = memory_get_peak_usage(true);
+
+        $symbol = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        $exp    = floor(log($bytes) / log(1024));
+
+        return sprintf('%.2f ' . $symbol[$exp], $bytes / pow(1024, floor($exp)));
+    }
 }

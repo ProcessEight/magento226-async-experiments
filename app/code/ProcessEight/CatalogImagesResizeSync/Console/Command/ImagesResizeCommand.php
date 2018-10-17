@@ -81,6 +81,7 @@ class ImagesResizeCommand extends Command
      * @var ProductImageFactory
      */
     private $productImageFactory;
+
     /**
      * @var \ProcessEight\CatalogImagesResizeSync\Api\TimerInterface
      */
@@ -189,6 +190,7 @@ class ImagesResizeCommand extends Command
         $this->timer->stopTimer();
         $output->write("\n");
         $output->writeln("<info>{$count} product images resized successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
 
         return 0;
     }

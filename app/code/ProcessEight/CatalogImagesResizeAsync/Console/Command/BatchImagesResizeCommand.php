@@ -127,22 +127,16 @@ class BatchImagesResizeCommand extends Command
             foreach ($productImages as $image) {
                 $originalImageName = $image['filepath'];
 
-                $processed = 0;
                 foreach ($viewImages as $viewImage) {
                     $image = $this->makeImage($originalImageName, $viewImage);
                     $image->resize();
                     $image->saveFile();
-                    $processed++;
                 }
             }
         } catch (\Exception $e) {
-            $messages[] = "<error>{$e->getMessage()}</error>";
-            $status     = Cli::RETURN_FAILURE;
+            $output->writeln("<error>{$e->getMessage()}</error>");
+            $status = Cli::RETURN_FAILURE;
         }
-
-        $messages[] = "<info>{$processed} images re-sized successfully.</info>";
-
-        $output->writeln(implode(PHP_EOL, $messages));
 
         return $status;
     }
