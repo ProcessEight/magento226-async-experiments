@@ -134,23 +134,36 @@ class AsyncPriceImportCommand extends Command
     }
 
     /**
+     * Process the prices using the event loop
+     *
      * @param int[] $productBasePrices
      * @param int   $numberOfChildProcesses
      */
     private function processBasePricesUsingEventLoop(array $productBasePrices, int $numberOfChildProcesses) : void
     {
+        // Get number of chunks to create
         $numberOfChunks         = $this->calculateNumberOfChunksForChildProcesses(
             $productBasePrices,
             $numberOfChildProcesses
         );
+
+        // Split data into chunks
         $productBasePriceChunks = array_chunk($productBasePrices, $numberOfChunks);
-        foreach ($productBasePriceChunks as $chunk) {
-            $this->createChildProcess($this->getChildProcessCommand($chunk));
+        foreach ($productBasePriceChunks as $productBasePriceChunk) {
+            // Add the command to the event loop
+            $this->createChildProcess(
+                // Generate the sub-command string, with the data passed as an argument to the sub-command
+                $this->getChildProcessCommand($productBasePriceChunk)
+            );
         }
+
+        // Process the prices using the event loop
         $this->loop->run();
     }
 
     /**
+     * Split the data into equally sized chunks
+     *
      * @param int[] $productBasePrices
      * @param int   $numberOfChildProcesses
      *
@@ -166,19 +179,8 @@ class AsyncPriceImportCommand extends Command
     }
 
     /**
-     * @param string $command
-     */
-    private function createChildProcess(string $command) : void
-    {
-        $reactProcess = $this->processFactory->create($command);
-        $reactProcess->start($this->loop);
-
-        $reactProcess->stdout->on('data', function ($chunk) {
-            echo $chunk;
-        });
-    }
-
-    /**
+     * Generate the sub-command string, with the data passed as an argument to the sub-command
+     *
      * @param int[] $productPrices
      *
      * @return string
@@ -192,5 +194,20 @@ class AsyncPriceImportCommand extends Command
                    BatchPriceImportCommand::NAME,
                    "'" . $this->jsonSerializer->serialize($productPrices) . "'"
                );
+    }
+
+    /**
+     * Subscribe to the events emitted by the sub-command
+     *
+     * @param string $command
+     */
+    private function createChildProcess(string $command) : void
+    {
+        $reactProcess = $this->processFactory->create($command);
+        $reactProcess->start($this->loop);
+
+        $reactProcess->stdout->on('data', function ($chunk) {
+            echo $chunk;
+        });
     }
 }
