@@ -118,8 +118,9 @@ class AsyncPriceImportCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->appState->setAreaCode(Area::AREA_GLOBAL);
-        $pricesFilename = '654594-prices.csv';
-        $filesystem     = \React\Filesystem\Filesystem::create($this->loop);
+        $pricesFilename = '2044-prices.csv';
+
+        $filesystem = \React\Filesystem\Filesystem::create($this->loop);
         /** @var \React\Filesystem\Node\File $file */
         $file = $filesystem->file("/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Data/{$pricesFilename}");
 
@@ -133,28 +134,73 @@ class AsyncPriceImportCommand extends Command
             // Load the entire file into memory, then return it
             // The main differences between this and file_get_contents()
             // is that this is faster and non-blocking
-            $file->getContents()->then(function ($productPrices) use ($pricesFilename) {
+            $promise = $file->getContents()
+                /**
+                 * then() transforms a promise's value by applying a function
+                 * to the promise's fulfillment or rejection value.
+                 * It then returns a new promise for the transformed result.
+                 *
+                 * @see https://reactphp.org/promise/#promiseinterfacethen
+                 */
+                ->then(
+                    /**
+                     * Invoked once the promise is fulfilled and passed the result as the first argument.
+                     * This callback method transforms the result value in some way and then returns it as a new promise
+                     *
+                     * @see https://reactphp.org/promise/#how-promise-forwarding-works
+                     */
+                    function ($result) {
+                        // File contents are returned as a string, just like file_get_contents()
+                        // Now convert the string into an array
+                        $allPrices = array_map(
+                            'str_getcsv',
+                            str_getcsv($result, "\n")
+                        );
 
-                // File contents are returned as a string, just like file_get_contents()
-                // Now convert the string into an array
-                $allPrices = array_map(
-                    'str_getcsv',
-                    str_getcsv($productPrices, "\n")
+                        // Remove header row
+                        unset($allPrices[0]);
+
+                        return $allPrices;
+                    },
+                    /**
+                     * Invoked once the promise is rejected and passed the reason as the first argument.
+                     */
+                    function ($reason) {
+                        echo "Promise rejected with error {$reason} on line " . __LINE__ . PHP_EOL;
+                    }
                 );
 
-                // Remove header row
-                unset($allPrices[0]);
-
-                $this->processPrices($allPrices);
-
-                // All the work has now been done.
-                // Don't wait for the loop to time out, just kill it now.
-                $this->loop->stop();
-            });
+            /**
+             * The intent of done() is to consume a promise's value,
+             * transferring responsibility for the value to your code.
+             *
+             * Consumes the promise's ultimate value if the promise fulfills,
+             * or handles the ultimate error.
+             *
+             * It will cause a fatal error if either the fulfilled or rejected
+             * callbacks throw or return a rejected promise.
+             *
+             * Since the purpose of done() is consumption rather than transformation,
+             * done() always returns null.
+             *
+             * @see https://reactphp.org/promise/#extendedpromiseinterfacedone
+             */
+            $promise->done(
+                // Invoked once the promise is fulfilled and passed the result as the first argument.
+                function ($result) {
+//                    echo "Promise resolved with result on line " . __LINE__ . PHP_EOL;
+                    $this->processPrices($result);
+                },
+                // Invoked once the promise is rejected and passed the reason as the first argument.
+                function ($error) {
+                    echo "Promise rejected with error {$error} on line " . __LINE__ . PHP_EOL;
+                }
+            );
 
             $file->close();
 
             $this->loop->run();
+
         } catch (\Exception $e) {
             $output->writeln("<error>{$e->getMessage()}</error>");
 
