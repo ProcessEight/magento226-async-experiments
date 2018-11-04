@@ -27,7 +27,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="priceImportCommand"
-                      xsi:type="object">ProcessEight\PriceImportSync\Console\Command\PriceImportCommand</item>
+                      xsi:type="object">ProcessEight\PriceImportSync\Console\Command\SyncPriceImportCommand</item>
             </argument>
         </arguments>
     </type>

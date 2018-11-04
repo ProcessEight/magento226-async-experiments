@@ -96,7 +96,7 @@ class ImagesResizeCommand extends Command
      * @param ProductImage                                             $productImage
      * @param ViewConfig                                               $viewConfig
      * @param ThemeCollection                                          $themeCollection
-     * @param ProductImageFactory                                      $productImageFactory
+     * @param ProductImageFactory                                      $productImagePriceFactory
      */
     public function __construct(
         \ProcessEight\CatalogImagesResizeSync\Api\TimerInterface $timer,
@@ -107,7 +107,7 @@ class ImagesResizeCommand extends Command
         ProductImage $productImage = null,
         ViewConfig $viewConfig = null,
         ThemeCollection $themeCollection = null,
-        ProductImageFactory $productImageFactory = null
+        ProductImageFactory $productImagePriceFactory = null
     ) {
         $this->timer                    = $timer;
         $this->appState                 = $appState;
@@ -117,7 +117,7 @@ class ImagesResizeCommand extends Command
         $this->productImage             = $productImage ?: ObjectManager::getInstance()->get(ProductImage::class);
         $this->viewConfig               = $viewConfig ?: ObjectManager::getInstance()->get(ViewConfig::class);
         $this->themeCollection          = $themeCollection ?: ObjectManager::getInstance()->get(ThemeCollection::class);
-        $this->productImageFactory      = $productImageFactory
+        $this->productImageFactory      = $productImagePriceFactory
             ?: ObjectManager::getInstance()->get(ProductImageFactory::class);
         parent::__construct();
     }
@@ -128,8 +128,7 @@ class ImagesResizeCommand extends Command
     protected function configure()
     {
         $this->setName('processeight:catalog:images:resize:sync')
-             ->setDescription('Creates resized product images')
-        ;
+             ->setDescription('Creates re-sized product images');
     }
 
     /**
@@ -142,10 +141,10 @@ class ImagesResizeCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->appState->setAreaCode(Area::AREA_GLOBAL);
+
         $output->writeln("<info>Starting timer...</info>");
         $this->timer->startTimer();
-
-        $this->appState->setAreaCode(Area::AREA_GLOBAL);
 
         try {
             $count = $this->productImage->getCountAllProductImages();

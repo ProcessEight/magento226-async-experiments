@@ -20,17 +20,11 @@ use Magento\Framework\App\Area;
 use Magento\Framework\Console\Cli;
 use ProcessEight\PriceImportAsync\Exception\TimerException;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class AsyncPriceImportCommand extends Command
 {
-    /**
-     * Name of the argument which defines the number of child processes to spawn
-     */
-    const NUMBER_OF_CHILD_PROCESSES = 'processes';
-
     /**
      * @var \Magento\Framework\App\State
      */
@@ -42,39 +36,64 @@ class AsyncPriceImportCommand extends Command
     private $timer;
 
     /**
-     * @var \ProcessEight\PriceImportAsync\Model\Adapter\ReactPHP\ProcessFactory
-     */
-    private $processFactory;
-
-    /**
      * @var \React\EventLoop\LoopInterface
      */
     private $loop;
 
     /**
-     * @var \Magento\Framework\Serialize\Serializer\Json
+     * Magento Catalog Api BasePriceStorageInterfaceFactory
+     *
+     * @var \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory
      */
-    private $jsonSerializer;
+    private $basePriceStorageFactory;
 
     /**
-     * @param \Magento\Framework\App\State                                         $appState
-     * @param \ProcessEight\PriceImportAsync\Api\TimerInterface                    $timer
-     * @param \ProcessEight\PriceImportAsync\Model\Adapter\ReactPHP\ProcessFactory $processFactory
-     * @param \React\EventLoop\Factory                                             $loopFactory
-     * @param \Magento\Framework\Serialize\Serializer\Json                         $jsonSerializer
+     * Magento Catalog Api CostStorageInterfaceFactory
+     *
+     * @var \Magento\Catalog\Api\CostStorageInterfaceFactory $costPriceStorageFactory
+     */
+    private $costPriceStorageFactory;
+
+    /**
+     * Magento Catalog Api Data BasePriceInterfaceFactory
+     *
+     * @var \Magento\Catalog\Api\Data\BasePriceInterfaceFactory $basePriceFactory
+     */
+    private $basePriceFactory;
+
+    /**
+     * Magento Catalog Api Data CostInterfaceFactory
+     *
+     * @var \Magento\Catalog\Api\Data\CostInterfaceFactory $costPriceFactory
+     */
+    private $costPriceFactory;
+
+
+    /**
+     * @param \Magento\Framework\App\State                          $appState
+     * @param \ProcessEight\PriceImportAsync\Api\TimerInterface     $timer
+     * @param \React\EventLoop\Factory                              $loopFactory
+     * @param \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory
+     * @param \Magento\Catalog\Api\CostStorageInterfaceFactory      $costPriceStorageFactory
+     * @param \Magento\Catalog\Api\Data\BasePriceInterfaceFactory   $basePriceFactory
+     * @param \Magento\Catalog\Api\Data\CostInterfaceFactory        $costPriceFactory
      */
     public function __construct(
         \Magento\Framework\App\State $appState,
         \ProcessEight\PriceImportAsync\Api\TimerInterface $timer,
-        \ProcessEight\PriceImportAsync\Model\Adapter\ReactPHP\ProcessFactory $processFactory,
         \React\EventLoop\Factory $loopFactory,
-        \Magento\Framework\Serialize\Serializer\Json $jsonSerializer
+        \Magento\Catalog\Api\BasePriceStorageInterfaceFactory $basePriceStorageFactory,
+        \Magento\Catalog\Api\CostStorageInterfaceFactory $costPriceStorageFactory,
+        \Magento\Catalog\Api\Data\BasePriceInterfaceFactory $basePriceFactory,
+        \Magento\Catalog\Api\Data\CostInterfaceFactory $costPriceFactory
     ) {
-        $this->appState       = $appState;
-        $this->timer          = $timer;
-        $this->processFactory = $processFactory;
-        $this->loop           = $loopFactory::create();
-        $this->jsonSerializer = $jsonSerializer;
+        $this->appState                = $appState;
+        $this->timer                   = $timer;
+        $this->loop                    = $loopFactory::create();
+        $this->basePriceStorageFactory = $basePriceStorageFactory;
+        $this->costPriceStorageFactory = $costPriceStorageFactory;
+        $this->basePriceFactory        = $basePriceFactory;
+        $this->costPriceFactory        = $costPriceFactory;
         parent::__construct();
     }
 
@@ -84,14 +103,7 @@ class AsyncPriceImportCommand extends Command
     protected function configure()
     {
         $this->setName('processeight:catalog:prices:import:async')
-             ->setDescription('Imports product prices asyncly')
-             ->addArgument(
-                 self::NUMBER_OF_CHILD_PROCESSES,
-                 InputArgument::OPTIONAL,
-                 'Number of child processes to spawn',
-                 3
-             )
-        ;
+             ->setDescription('Imports product prices asyncly');
     }
 
     /**
@@ -105,18 +117,70 @@ class AsyncPriceImportCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->appState->setAreaCode(Area::AREA_GLOBAL);
+        $pricesFilename = '654594-prices.csv';
+        $filesystem     = \React\Filesystem\Filesystem::create($this->loop);
+        /** @var \React\Filesystem\Node\File $file */
+        $file = $filesystem->file("/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Data/{$pricesFilename}");
+
+        $output->writeln("<info>Importing {$pricesFilename}...</info>");
+        $output->writeln("<warn>I'm not entirely convinced the timer is working properly when called twice from the same class. Perhaps split this into two commands?</warn>");
+        $output->writeln("<info>Method One: For processing small files which can fit into memory</info>");
         $output->writeln("<info>Starting timer...</info>");
-        $output->writeln("<info>Using {$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES)} child processes</info>");
         $this->timer->startTimer();
 
-        $this->appState->setAreaCode(Area::AREA_GLOBAL);
+        try {
+            // Load the entire file into memory, then return it
+            // The main differences between this and file_get_contents()
+            // is that this is faster and non-blocking
+            $file->getContents()->then(function ($productPrices) use ($pricesFilename) {
+
+                // File contents are returned as a string, just like file_get_contents()
+                // Now convert the string into an array
+                $allPrices = array_map(
+                    'str_getcsv',
+                    str_getcsv($productPrices, "\n")
+                );
+
+                // Remove header row
+                unset($allPrices[0]);
+
+                $this->processPrices($allPrices);
+
+                // All the work has now been done.
+                // Don't wait for the loop to time out, just kill it now.
+                $this->loop->stop();
+            });
+
+            $file->close();
+
+            $this->loop->run();
+        } catch (\Exception $e) {
+            $output->writeln("<error>{$e->getMessage()}</error>");
+
+            return Cli::RETURN_FAILURE;
+        }
+
+        $this->timer->stopTimer();
+        $output->writeln("<info>Stopped timer.</info>");
+        $output->writeln("<info>All prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
+        $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
+
+        // Method 2
+
+        $output->writeln("<info>(@TODO) Method Two: For processing very large files which cannot fit into memory</info>");
+        $output->writeln("<info>Starting timer...</info>");
+
+        $this->timer->startTimer();
 
         try {
-            $numberOfChildProcesses = (int)$input->getArgument(self::NUMBER_OF_CHILD_PROCESSES);
-
-            $allPrices = array_map('str_getcsv', file('/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Console/Command/async-prices.csv'));
-
-            $this->processBasePricesUsingEventLoop($allPrices ?? [], $numberOfChildProcesses);
+            $file2 = $filesystem->file("/var/www/vhosts/async-php/magento226-async-experiments/htdocs/app/code/ProcessEight/PriceImportAsync/Data/{$pricesFilename}");
+            $file2->open('r')->then(function ($stream) {
+                $stream->on('data', function ($chunk) {
+                    echo 'Chunk read: ' . PHP_EOL;
+                });
+            });
+            $this->loop->run();
 
         } catch (\Exception $e) {
             $output->writeln("<error>{$e->getMessage()}</error>");
@@ -125,7 +189,6 @@ class AsyncPriceImportCommand extends Command
         }
 
         $this->timer->stopTimer();
-        $output->writeln("");
         $output->writeln("Stopped timer.");
         $output->writeln("<info>All product prices imported successfully in {$this->timer->getExecutionTimeInSeconds()} seconds.</info>");
         $output->writeln("<info>Peak memory usage: {$this->timer->getMemoryPeakUsage()}");
@@ -136,78 +199,54 @@ class AsyncPriceImportCommand extends Command
     /**
      * Process the prices using the event loop
      *
-     * @param int[] $productBasePrices
-     * @param int   $numberOfChildProcesses
-     */
-    private function processBasePricesUsingEventLoop(array $productBasePrices, int $numberOfChildProcesses) : void
-    {
-        // Get number of chunks to create
-        $numberOfChunks         = $this->calculateNumberOfChunksForChildProcesses(
-            $productBasePrices,
-            $numberOfChildProcesses
-        );
-
-        // Split data into chunks
-        $productBasePriceChunks = array_chunk($productBasePrices, $numberOfChunks);
-        foreach ($productBasePriceChunks as $productBasePriceChunk) {
-            // Add the command to the event loop
-            $this->createChildProcess(
-                // Generate the sub-command string, with the data passed as an argument to the sub-command
-                $this->getChildProcessCommand($productBasePriceChunk)
-            );
-        }
-
-        // Process the prices using the event loop
-        $this->loop->run();
-    }
-
-    /**
-     * Split the data into equally sized chunks
-     *
-     * @param int[] $productBasePrices
-     * @param int   $numberOfChildProcesses
-     *
-     * @return int
-     */
-    private function calculateNumberOfChunksForChildProcesses(
-        array $productBasePrices,
-        int $numberOfChildProcesses
-    ) : int {
-        $numberOfChunks = (int)(count($productBasePrices) / $numberOfChildProcesses);
-
-        return $numberOfChunks > 0 ? $numberOfChunks : 1;
-    }
-
-    /**
-     * Generate the sub-command string, with the data passed as an argument to the sub-command
-     *
      * @param int[] $productPrices
      *
-     * @return string
+     * @return bool
+     * @throws \Magento\Framework\Exception\CouldNotSaveException
      */
-    private function getChildProcessCommand(array $productPrices) : string
+    private function processPrices(array $productPrices) : bool
     {
-        return PHP_BINARY
-               . sprintf(
-                   ' %s/bin/magento %s %s',
-                   BP,
-                   BatchPriceImportCommand::NAME,
-                   "'" . $this->jsonSerializer->serialize($productPrices) . "'"
-               );
-    }
+        $processed = 0;
 
-    /**
-     * Subscribe to the events emitted by the sub-command
-     *
-     * @param string $command
-     */
-    private function createChildProcess(string $command) : void
-    {
-        $reactProcess = $this->processFactory->create($command);
-        $reactProcess->start($this->loop);
+        /** @var \Magento\Catalog\Api\BasePriceStorageInterface $basePriceStorage */
+        $basePriceStorage = $this->basePriceStorageFactory->create();
+        /** @var \Magento\Catalog\Api\CostStorageInterface $costPriceStorage */
+        $costPriceStorage = $this->costPriceStorageFactory->create();
 
-        $reactProcess->stdout->on('data', function ($chunk) {
-            echo $chunk;
-        });
+        /** @var \Magento\Catalog\Api\Data\BasePriceInterface $basePrice */
+        $emptyBasePrice = $this->basePriceFactory->create();
+        /** @var \Magento\Catalog\Api\Data\CostInterface $costPrice */
+        $emptyCostPrice = $this->costPriceFactory->create();
+
+        foreach ($productPrices as $price) {
+            $basePrice = $emptyBasePrice;
+            $basePrice->setSku($price[0]);
+            $basePrice->setStoreId($price[1]);
+            $basePrice->setPrice($price[2]);
+            $basePrices[] = $basePrice;
+
+            $costPrice = $emptyCostPrice;
+            $costPrice->setSku($price[0]);
+            $costPrice->setStoreId($price[1]);
+            $costPrice->setCost($price[4]);
+            $costPrices[] = $costPrice;
+
+            $processed++;
+
+            if ($processed % 1000 == 0) {
+                $basePriceStorage->update($basePrices);
+                $basePrices = [];
+                $costPriceStorage->update($costPrices);
+                $costPrices = [];
+            }
+        }
+        if (!empty($basePrices)) {
+            $basePriceStorage->update($basePrices);
+        }
+        if (!empty($costPrices)) {
+            $costPriceStorage->update($costPrices);
+        }
+
+        return $processed;
     }
 }

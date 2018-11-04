@@ -27,7 +27,6 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="asyncPriceImportCommand" xsi:type="object">ProcessEight\PriceImportAsync\Console\Command\AsyncPriceImportCommand</item>
-                <item name="batchPriceImportCommand" xsi:type="object">ProcessEight\PriceImportAsync\Console\Command\BatchPriceImportCommand</item>
             </argument>
         </arguments>
     </type>
